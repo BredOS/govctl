@@ -1,0 +1,11 @@
+post_install() {
+    systemctl enable --now govctl
+}
+
+post_upgrade() {
+    systemctl daemon-reload
+    sleep 1
+    systemctl stop govctl
+    sleep 1
+    post_install
+}
