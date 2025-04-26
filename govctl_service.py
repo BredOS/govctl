@@ -88,25 +88,29 @@ def fetch_prop(dev: Path, attr: str) -> str:
 
 
 def status() -> int:
-    bat_min = None
+    perc_min = 100
+
     for device in Path(BATTERY_PATH).iterdir():
-        try:
-            energy_now = fetch_prop(device, "energy_now")
-            energy_full = fetch_prop(device, "energy_full")
+        if "hidpp" not in device:
+            try:
+                energy_now = fetch_prop(device, "energy_now")
+                energy_full = fetch_prop(device, "energy_full")
 
-            online = fetch_prop(device, "online")
+                online = fetch_prop(device, "online")
 
-            if online and int(online):
-                return 100
-            elif energy_full and int(energy_full):
-                return (
-                    1 - ((int(energy_full) - int(energy_now)) / int(energy_full))
-                ) * 100
+                if online and int(online):
+                    return 100
+                elif energy_full and int(energy_full):
+                    perc_min = min(
+                        (1 - ((int(energy_full) - int(energy_now)) / int(energy_full)))
+                        * 100,
+                        perc_min,
+                    )
 
-        except Exception as e:
-            logging.error(f"Error parsing device {device}: {e}")
+            except Exception as e:
+                logging.error(f"Error parsing device {device}: {e}")
 
-    return 100
+    return perc_min
 
 
 def reload(signum, frame) -> None:
