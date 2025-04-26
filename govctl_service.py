@@ -30,7 +30,8 @@ logging.basicConfig(
 
 # Globals
 current_config = {}
-last_governor = None
+force_show = True
+powersave = False
 
 
 def load_config() -> None:
@@ -44,6 +45,8 @@ def load_config() -> None:
 
 
 def set_governor(governor: str) -> None:
+    global force_show
+    altered = False
     if governor not in VALID_CPU_GOVS:
         logging.error(f"Invalid CPU governor: {governor}")
 
@@ -54,6 +57,7 @@ def set_governor(governor: str) -> None:
             try:
                 cpu_path.write_text(governor)
                 logging.info(f"Set {cpu_path} to {governor}")
+                altered = True
             except Exception as e:
                 logging.error(f"Failed to set {cpu_path}: {e}")
 
@@ -64,8 +68,15 @@ def set_governor(governor: str) -> None:
             try:
                 devfreq_path.write_text(devfreq_gov)
                 logging.info(f"Set {devfreq_path} to {devfreq_gov}")
+                altered = True
             except Exception as e:
                 logging.error(f"Failed to set {devfreq_path}: {e}")
+
+    if altered or force_show:
+        if force_show:
+            force_show = False
+            time.sleep(0.5)
+        logging.info(f'Applied governor "{governor}"')
 
 
 def fetch_prop(dev: Path, attr: str) -> str:
@@ -98,50 +109,57 @@ def status() -> int:
     return 100
 
 
-def reload(signum, frame):
+def reload(signum, frame) -> None:
+    global force_show
     load_config()
+    force_show = True
+
+
+def delay() -> None:
+    period = 5 if powersave else 20
+    for _ in range(period):
+        time.sleep(1)
+        if force_show:
+            return
 
 
 def main():
-    logging.warning("Starting GovCtl")
-    global last_governor
+    logging.info("Starting GovCtl")
+    global force_show, powersave
 
     signal.signal(signal.SIGHUP, reload)
     load_config()
 
-    powersave = False
+    while True:
+        if not current_config:
+            logging.warning("Config could not be loaded, retrying in 10s.")
+            time.sleep(10)
+            continue
 
-    try:
-        while True:
-            if not current_config:
-                logging.warning("Config could not be loaded, retrying in 10s.")
-                time.sleep(10)
-                continue
+        desired_governor = current_config.get("governor", "performance")
+        detect_battery = current_config.get("detect_battery_state", False)
+        powersave_point = max(min(current_config.get("powersave_point", 20), 80), 0)
 
-            desired_governor = current_config.get("governor", "performance")
-            detect_battery = current_config.get("detect_battery_state", False)
-            powersave_point = max(min(current_config.get("powersave_point", 20), 80), 0)
+        st = status() if detect_battery else 100
 
-            st = status() if detect_battery else 100
-
-            if powersave:
-                if st < (powersave_point + 10):
-                    set_governor("powersave")
-                else:
-                    set_governor(desired_governor)
-                    powersave = False
-                    logging.info("Adequate power detected, switching to normal mode.")
+        if powersave:
+            if st < (powersave_point + 10):
+                set_governor("powersave")
             else:
-                if st > powersave_point:
-                    set_governor(desired_governor)
-                else:
-                    set_governor("powersave")
-                    powersave = True
-                    logging.info("Low battery detected, switching to powersave.")
+                logging.info("Adequate power detected, switching to normal mode.")
+                powersave = False
+                set_governor(desired_governor)
+            delay()
+        else:
+            if st > powersave_point:
+                set_governor(desired_governor)
+            else:
+                logging.info("Low battery detected, switching to powersave.")
+                powersave = True
+                set_governor("powersave")
+            delay()
 
-            time.sleep(30)
-    except:
-        logging.warning("Exiting GovCtl")
+    logging.warning("Exiting GovCtl")
 
 
 if __name__ == "__main__":
