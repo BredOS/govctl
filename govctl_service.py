@@ -91,7 +91,7 @@ def status() -> int:
     perc_min = 100
 
     for device in Path(BATTERY_PATH).iterdir():
-        if "hidpp" not in device:
+        if "hidpp" not in str(device):
             try:
                 energy_now = fetch_prop(device, "energy_now")
                 energy_full = fetch_prop(device, "energy_full")

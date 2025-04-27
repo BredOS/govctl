@@ -1,7 +1,7 @@
 # Maintainer: Bill Sideris <bill88t@bredos.org>
 
 pkgname=bredos-govctl
-pkgver=1.0.1
+pkgver=1.0.2
 pkgrel=1
 pkgdesc="BredOS CPU/devfreq governor manager."
 
