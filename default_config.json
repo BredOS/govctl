@@ -1,5 +1,6 @@
 {
     "governor": "performance",
+    "governor_battery": "conservative",
     "detect_battery_state": true,
     "powersave_point": 20
 }

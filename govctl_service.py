@@ -141,6 +141,7 @@ def main():
             continue
 
         desired_governor = current_config.get("governor", "performance")
+        battery_governor = current_config.get("governor_battery", "conservative")
         detect_battery = current_config.get("detect_battery_state", False)
         powersave_point = max(min(current_config.get("powersave_point", 20), 80), 0)
 
@@ -152,11 +153,11 @@ def main():
             else:
                 logging.info("Adequate power detected, switching to normal mode.")
                 powersave = False
-                set_governor(desired_governor)
+                set_governor(desired_governor if st == 100 else battery_governor)
             delay()
         else:
             if st > powersave_point:
-                set_governor(desired_governor)
+                set_governor(desired_governor if st == 100 else battery_governor)
             else:
                 logging.info("Low battery detected, switching to powersave.")
                 powersave = True

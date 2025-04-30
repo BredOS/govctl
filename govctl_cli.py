@@ -33,24 +33,35 @@ def check_root() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Governor configuration tool")
+
     parser.add_argument(
         "-g",
         "--set-governor",
         choices=["powersave", "conservative", "performance"],
         help="Set desired governor",
     )
+
     parser.add_argument(
         "-b",
+        "--set-battery-governor",
+        choices=["powersave", "conservative", "performance"],
+        help="Set desired governor while running on battery power",
+    )
+
+    parser.add_argument(
+        "-e",
         "--enable-battery-detection",
         action="store_true",
         help="Enable battery state detection",
     )
+
     parser.add_argument(
         "-d",
         "--disable-battery-detection",
         action="store_true",
         help="Disable battery state detection",
     )
+
     parser.add_argument(
         "-p",
         "--powersave-percent",
@@ -71,6 +82,10 @@ def main() -> None:
 
     if args.set_governor:
         config["governor"] = args.set_governor
+        modified = True
+
+    if args.set_battery_governor:
+        config["governor_battery"] = args.set_battery_governor
         modified = True
 
     if args.enable_battery_detection:
