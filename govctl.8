@@ -1,0 +1,37 @@
+.TH GOVCTL 8 "May 2025" "BredOS" "System Administration"
+.SH NAME
+govctl \- CPU and devfreq governor manager for BredOS
+.SH SYNOPSIS
+.B govctl
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B govctl
+is a utility for managing CPU and device frequency governors in BredOS.
+It allows users to easily switch between different power profiles and
+adjust system performance characteristics.
+.SH OPTIONS
+.TP
+.B \-g, \-\-set\-governor \fIGOVERNOR\fR
+Set desired CPU governor. Valid values: powersave, conservative, performance
+.TP
+.B \-b, \-\-set\-battery\-governor \fIGOVERNOR\fR
+Set desired governor while running on battery power. Valid values: powersave, conservative, performance
+.TP
+.B \-e, \-\-enable\-battery\-detection
+Enable battery state detection
+.TP
+.B \-d, \-\-disable\-battery\-detection
+Disable battery state detection
+.TP
+.B \-p, \-\-powersave\-percent \fIPERCENT\fR
+Set the battery percentage at which powersave mode triggers (0-80)
+.SH FILES
+.TP
+.I /etc/govctl/config.json
+Configuration file containing governor settings
+.SH SEE ALSO
+.BR systemctl (1)
+.SH BUGS
+Report bugs to https://github.com/BredOS/govctl/issues
+.SH AUTHOR
+Bill88t <bill88t@feline.gr>

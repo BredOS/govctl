@@ -15,12 +15,14 @@ backup=('etc/govctl/config.json')
 source=('govctl_service.py'
         'govctl_cli.py'
         'govctl.service'
-        'default_config.json')
+        'default_config.json'
+        'govctl.8')
 
-sha256sums=('SKIP'
-            'SKIP'
-            'SKIP'
-            'SKIP')
+sha256sums=('83d6a2458dd8e2dbf2964984582c67d60cb9d87566680e805df34bf3f670be77'
+            'd20f437916f6dbe853ae7ffd0995a950e7c8eed57691b8b829f0a352fdbc881c'
+            '8a098c350416e3fe789cceb4d0fb5902fb9fed4e56abdf28cb989b4bd8c4923b'
+            '9d10c81fff99c57d2eabad9adc3298b84d24dad390dd784ab7ac08d6650a2afb'
+            'e8ea1f038dfeaf86e8008a61d05cd4ba0a7ca33c3a7c71894749b0330b4c2364')
 
 install=govctl.install
 
@@ -32,4 +34,7 @@ package() {
 
     install -d "${pkgdir}/etc/govctl/"
     install -Dm644 default_config.json "${pkgdir}/etc/govctl/config.json"
+    
+    # Install man page
+    install -Dm644 govctl.8 "${pkgdir}/usr/share/man/man8/govctl.8"
 }
