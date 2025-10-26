@@ -14,6 +14,10 @@ LOG_TAG = "govctl"
 VALID_CPU_GOVS = ["powersave", "conservative", "performance"]
 VALID_DEVFREQ_GOVS = ["powersave", "performance"]
 
+isx = os.uname().machine == "x86_64"
+if isx:
+    VALID_CPU_GOVS.remove("conservative")
+
 CPU_GOVERNOR_PATH = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"
 DEVFREQ_GOVERNOR_PATH = "/sys/class/devfreq/*/governor"
 BATTERY_PATH = "/sys/class/power_supply/"
@@ -56,6 +60,8 @@ def set_governor(governor: str) -> None:
         if cpu_path.read_text().strip() != governor:
             try:
                 cpu_path.write_text(governor)
+                if cpu_path.read_text().strip() != governor:
+                    raise Exception
                 logging.info(f"Set {cpu_path} to {governor}")
                 altered = True
             except Exception as e:
@@ -67,6 +73,8 @@ def set_governor(governor: str) -> None:
         if devfreq_path.read_text().strip() != devfreq_gov:
             try:
                 devfreq_path.write_text(devfreq_gov)
+                if devfreq_path.read_text().strip() != devfreq_gov:
+                    raise Exception
                 logging.info(f"Set {devfreq_path} to {devfreq_gov}")
                 altered = True
             except Exception as e:
@@ -91,14 +99,21 @@ def status() -> int:
     perc_min = 100
 
     for device in Path(BATTERY_PATH).iterdir():
-        if "hidpp" not in str(device):
+        if ("hidpp" not in str(device)) and not (
+            str(device).startswith(BATTERY_PATH + "hid-")
+        ):
             try:
                 energy_now = fetch_prop(device, "energy_now")
                 energy_full = fetch_prop(device, "energy_full")
 
+                charge_now = fetch_prop(device, "charge_now")
+
+                charge_full = fetch_prop(device, "charge_full")
+
                 online = fetch_prop(device, "online")
 
                 if online and int(online):
+                    logging.info(f"Found online: {str(device)}")
                     return 100
                 elif energy_full and int(energy_full):
                     perc_min = min(
@@ -106,11 +121,16 @@ def status() -> int:
                         * 100,
                         perc_min,
                     )
-
+                elif charge_full and int(charge_full):
+                    perc_min = min(
+                        (1 - ((int(charge_full) - int(charge_now)) / int(charge_full)))
+                        * 100,
+                        perc_min,
+                    )
             except Exception as e:
                 logging.error(f"Error parsing device {device}: {e}")
 
-    return perc_min
+    return int(perc_min)
 
 
 def reload(signum, frame) -> None:
@@ -146,6 +166,7 @@ def main():
         powersave_point = max(min(current_config.get("powersave_point", 20), 80), 0)
 
         st = status() if detect_battery else 100
+        logging.info(f"Status: {st}")
 
         if powersave:
             if st < (powersave_point + 10):
