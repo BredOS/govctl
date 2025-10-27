@@ -54,6 +54,10 @@ def set_governor(governor: str) -> None:
     if governor not in VALID_CPU_GOVS:
         logging.error(f"Invalid CPU governor: {governor}")
 
+    if isx and governor == "conservative":
+        logging.warning('Applying "performance" instead.')
+        governor = "performance"
+
     for cpu_path in Path("/sys/devices/system/cpu/").glob(
         "cpu*/cpufreq/scaling_governor"
     ):
@@ -113,7 +117,6 @@ def status() -> int:
                 online = fetch_prop(device, "online")
 
                 if online and int(online):
-                    logging.info(f"Found online: {str(device)}")
                     return 100
                 elif energy_full and int(energy_full):
                     perc_min = min(
@@ -166,7 +169,6 @@ def main():
         powersave_point = max(min(current_config.get("powersave_point", 20), 80), 0)
 
         st = status() if detect_battery else 100
-        logging.info(f"Status: {st}")
 
         if powersave:
             if st < (powersave_point + 10):
