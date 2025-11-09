@@ -2,5 +2,10 @@
     "governor": "performance",
     "governor_battery": "conservative",
     "detect_battery_state": true,
-    "powersave_point": 20
+    "powersave_point": 20,
+    "tdp": {
+        "boost": 50,
+        "conservative": 13,
+        "powersave": 8,
+    },
 }

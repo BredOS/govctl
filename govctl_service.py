@@ -58,7 +58,7 @@ def load_config() -> None:
         logging.error(f"Failed to load config: {e}")
 
 
-def run_raplctl(governor: str) -> None:
+def run_raplctl(governor: str, tdps: dict) -> None:
     global applied_rapl
     if not (isi and Path(RAPLCTL_PATH).exists()):
         return
@@ -67,15 +67,14 @@ def run_raplctl(governor: str) -> None:
         return
 
     command = []
-    if governor == "performance":
-        command = [RAPLCTL_PATH, "-w", "long=900,short=900,long_time=300"]
-    elif governor == "powersave":
-        command = [RAPLCTL_PATH, "-w", "long=8,short=12,long_time=20"]
-    elif governor == "conservative_x86":
-        command = [RAPLCTL_PATH, "-w", "long=15,short=20,long_time=20"]
+    if governor == "conservative_x86":
+        governor = "conservative"
 
-    if not command:
-        return
+    command = [
+        RAPLCTL_PATH,
+        "-w",
+        f"long={int(tdps[governor])},short={int(min(tdps[governor] * (1 + (tdps["boost"]/100)), 900))},long_time={300 if governor == 'performance' else 20}",
+    ]
 
     try:
         result = subprocess.run(
@@ -94,7 +93,7 @@ def run_raplctl(governor: str) -> None:
             logging.error(f"raplctl error: {e.stderr.strip()}")
 
 
-def set_governor(governor: str) -> None:
+def set_governor(governor: str, tdps: dict) -> None:
     global force_show
     altered = False
     if governor not in VALID_CPU_GOVS:
@@ -109,7 +108,7 @@ def set_governor(governor: str) -> None:
         governor = "powersave"
 
     # Set raplctl limits before changing governor
-    run_raplctl(rapl_mode)
+    run_raplctl(rapl_mode, tdps)
 
     for cpu_path in Path("/sys/devices/system/cpu/").glob(
         "cpu*/cpufreq/scaling_governor"
@@ -221,23 +220,50 @@ def main():
         detect_battery = current_config.get("detect_battery_state", False)
         powersave_point = max(min(current_config.get("powersave_point", 20), 80), 0)
 
+        tdps = current_config.get("tdps", None)
+        default_tdps = {
+            "boost": 50,
+            "performance": 900,
+            "conservative": 13,
+            "powersave": 8,
+        }
+
+        if tdps is None:
+            tdps = default_tdps
+        else:
+            validated_tdps = {}
+            for key, default_value in default_tdps.items():
+                value = tdps.get(key, default_value)
+                try:
+                    int_value = int(value)
+                    if int_value <= 0:
+                        raise ValueError
+                    validated_tdps[key] = int_value
+                except (ValueError, TypeError):
+                    validated_tdps[key] = default_value
+            tdps = validated_tdps
+
         st = status() if detect_battery else 100
 
         if powersave:
             if st < (powersave_point + 10):
-                set_governor("powersave")
+                set_governor("powersave", tdps)
             else:
                 logging.info("Adequate power detected, switching to normal mode.")
                 powersave = False
-                set_governor(desired_governor if st == 100 else battery_governor)
+                set_governor(
+                    (desired_governor if st == 100 else battery_governor), tdps
+                )
             delay()
         else:
             if st > powersave_point:
-                set_governor(desired_governor if st == 100 else battery_governor)
+                set_governor(
+                    (desired_governor if st == 100 else battery_governor), tdps
+                )
             else:
                 logging.info("Low battery detected, switching to powersave.")
                 powersave = True
-                set_governor("powersave")
+                set_governor("powersave", tdps)
             delay()
 
     logging.warning("Exiting GovCtl")
