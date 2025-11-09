@@ -15,29 +15,12 @@ def format_value(num):
 
 
 def write_value(path, value):
-    """Writes a value to a file, using sudo if necessary, with minimal output."""
     try:
         with open(path, "w") as f:
             f.write(str(value))
     except PermissionError:
-        try:
-            subprocess.run(
-                ["sudo", "tee", path],
-                input=f"{value}\n",
-                text=True,
-                check=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-        except FileNotFoundError:
-            print(
-                f"Error: 'sudo' or 'tee' command not found. Failed to write to {path}."
-            )
-            return False
-        except subprocess.CalledProcessError as e:
-            error_message = e.stderr.strip() if e.stderr else "Unknown error"
-            print(f"Failed to write to {path} with sudo: {error_message}")
-            return False
+        print(f"Failed to write to {path}")
+        return False
     except Exception as e:
         print(f"An unexpected error occurred while writing to {path}: {e}")
         return False
@@ -227,8 +210,7 @@ def main():
         description="Manage Intel RAPL power limits.",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog="This tool reads and writes values to the Linux power capping framework.\n"
-        "Writing values typically requires root permissions.\n"
-        "If not run as root, it will attempt to use 'sudo' for write operations.",
+        "Writing values typically requires root permissions.",
     )
     parser.add_argument(
         "-l",

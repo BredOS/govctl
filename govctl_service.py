@@ -5,18 +5,29 @@ import os
 import time
 import logging
 import signal
+import subprocess
 from pathlib import Path
 import logging.handlers
 
 CONFIG_PATH = "/etc/govctl/config.json"
 LOG_TAG = "govctl"
+RAPLCTL_PATH = "/usr/bin/raplctl"
 
 VALID_CPU_GOVS = ["powersave", "conservative", "performance"]
 VALID_DEVFREQ_GOVS = ["powersave", "performance"]
 
-isx = os.uname().machine == "x86_64"
+isi = False  # Is Intel
+isa = False  # Is AMD
+
+isx = os.uname().machine == "x86_64"  # Is x86_64
 if isx:
     VALID_CPU_GOVS.remove("conservative")
+
+    try:
+        with open("/proc/cpuinfo", "r") as f:
+            isi = "GenuineIntel" in f.read()
+    except Exception:
+        pass  # Ignore errors if /proc/cpuinfo is not available
 
 CPU_GOVERNOR_PATH = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"
 DEVFREQ_GOVERNOR_PATH = "/sys/class/devfreq/*/governor"
@@ -48,6 +59,35 @@ def load_config() -> None:
         logging.error(f"Failed to load config: {e}")
 
 
+def run_raplctl(governor: str) -> None:
+    if not (isi and Path(RAPLCTL_PATH).exists()):
+        return
+
+    command = []
+    if governor == "performance":
+        command = [RAPLCTL_PATH, "-w", "long=900,short=900,long_time=300"]
+    elif governor == "powersave":
+        command = [RAPLCTL_PATH, "-w", "long=10,short=15,long_time=20"]
+
+    if not command:
+        return
+
+    try:
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        logging.info(f"Successfully ran raplctl for {governor} mode.")
+        if result.stdout:
+            logging.info(f"raplctl output: {result.stdout.strip()}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to run raplctl: {e}")
+        if e.stderr:
+            logging.error(f"raplctl error: {e.stderr.strip()}")
+
+
 def set_governor(governor: str) -> None:
     global force_show
     altered = False
@@ -57,6 +97,9 @@ def set_governor(governor: str) -> None:
     if isx and governor == "conservative":
         logging.warning('Applying "performance" instead.')
         governor = "performance"
+
+    # Set raplctl limits before changing governor
+    run_raplctl(governor)
 
     for cpu_path in Path("/sys/devices/system/cpu/").glob(
         "cpu*/cpufreq/scaling_governor"
