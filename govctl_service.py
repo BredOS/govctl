@@ -151,7 +151,7 @@ def set_governor(governor: str, tdps: dict) -> None:
     if governor not in VALID_CPU_GOVS:
         logging.error(f"Invalid CPU governor: {governor}")
 
-    tdp_mode = governor
+    effective_governor = governor
     if isx and governor == "conservative":
         logging.warning(
             'Applying "powersave" governor with custom power limits for conservative mode.'
@@ -159,8 +159,8 @@ def set_governor(governor: str, tdps: dict) -> None:
         governor = "powersave"
 
     # Set tdp before governor
-    run_raplctl(tdp_mode, tdps)
-    run_ryzenadj(tdp_mode, tdps)
+    run_raplctl(effective_governor, tdps)
+    run_ryzenadj(effective_governor, tdps)
 
     for cpu_path in Path("/sys/devices/system/cpu/").glob(
         "cpu*/cpufreq/scaling_governor"
@@ -192,7 +192,7 @@ def set_governor(governor: str, tdps: dict) -> None:
         if force_show:
             force_show = False
             time.sleep(0.5)
-        logging.info(f'Applied governor "{governor}"')
+        logging.info(f'Applied governor "{effective_governor}"')
 
 
 def fetch_prop(dev: Path, attr: str) -> str:
