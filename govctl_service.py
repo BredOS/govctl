@@ -21,8 +21,6 @@ isa = False  # Is AMD
 
 isx = os.uname().machine == "x86_64"  # Is x86_64
 if isx:
-    VALID_CPU_GOVS.remove("conservative")
-
     try:
         with open("/proc/cpuinfo", "r") as f:
             isi = "GenuineIntel" in f.read()
@@ -67,7 +65,9 @@ def run_raplctl(governor: str) -> None:
     if governor == "performance":
         command = [RAPLCTL_PATH, "-w", "long=900,short=900,long_time=300"]
     elif governor == "powersave":
-        command = [RAPLCTL_PATH, "-w", "long=10,short=15,long_time=20"]
+        command = [RAPLCTL_PATH, "-w", "long=8,short=12,long_time=20"]
+    elif governor == "conservative_x86":
+        command = [RAPLCTL_PATH, "-w", "long=15,short=20,long_time=20"]
 
     if not command:
         return
@@ -94,12 +94,16 @@ def set_governor(governor: str) -> None:
     if governor not in VALID_CPU_GOVS:
         logging.error(f"Invalid CPU governor: {governor}")
 
+    rapl_mode = governor
     if isx and governor == "conservative":
-        logging.warning('Applying "performance" instead.')
-        governor = "performance"
+        logging.warning(
+            'Applying "powersave" governor with custom power limits for conservative mode.'
+        )
+        rapl_mode = "conservative_x86"
+        governor = "powersave"
 
     # Set raplctl limits before changing governor
-    run_raplctl(governor)
+    run_raplctl(rapl_mode)
 
     for cpu_path in Path("/sys/devices/system/cpu/").glob(
         "cpu*/cpufreq/scaling_governor"
