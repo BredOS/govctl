@@ -127,55 +127,95 @@ def list_power_limits():
         print()
 
 
-def set_power_limits(rule, apply_to_all=False):
+def set_power_limits(rule, device=None):
     """Sets power limits based on a rule string, with robust error handling."""
     if not os.path.isdir(RAPL_PATH):
-        print("intel-rapl directory not found. Exiting.")
+        print("Intel RAPL directory not found. Exiting.")
         return
 
     try:
-        settings = dict(item.split("=") for item in rule.split(","))
+        settings = {
+            k.lower(): v for k, v in (item.split("=") for item in rule.split(","))
+        }
     except ValueError:
-        print("Invalid rule format. Use: peak=W,long=W,short=W,time=s")
+        print(
+            "Invalid rule format. Use: long=75,long_time=28,short=90,short_time=0.002"
+        )
         return
 
-    power_map = {
-        "peak": "constraint_0_power_limit_uw",
-        "short": "constraint_0_power_limit_uw",
-        "long": "constraint_1_power_limit_uw",
-    }
-    time_map = {"time": "constraint_0_time_window_us"}
-
-    rapl_dirs = sorted(
+    all_rapl_dirs = sorted(
         [d for d in os.listdir(RAPL_PATH) if d.startswith("intel-rapl:")]
     )
-    if not rapl_dirs:
-        print("No intel-rapl devices found.")
-        return
 
-    target_dirs = rapl_dirs if apply_to_all else [rapl_dirs[0]]
+    target_dirs = []
+    if device:
+        if device in all_rapl_dirs:
+            target_dirs.append(device)
+        else:
+            print(f"Error: Device '{device}' not found.")
+            return
+    else:
+        # Default to all enabled devices
+        for d in all_rapl_dirs:
+            enabled_path = os.path.join(RAPL_PATH, d, "enabled")
+            if os.path.exists(enabled_path):
+                with open(enabled_path, "r") as f:
+                    if f.read().strip() == "1":
+                        target_dirs.append(d)
+
+    if not target_dirs:
+        print("No enabled RAPL devices found to apply settings to.")
+        return
 
     for rapl_dir in target_dirs:
         print(f"Applying settings to {rapl_dir}:")
+        rapl_full_path = os.path.join(RAPL_PATH, rapl_dir)
+
+        # Dynamically build constraint map for the device
+        constraint_map = {}
+        for item in os.listdir(rapl_full_path):
+            if item.endswith("_name"):
+                name_path = os.path.join(rapl_full_path, item)
+                with open(name_path, "r") as f:
+                    name = f.read().strip()
+                constraint_id = item.split("_")[1]
+                if "long" in name:
+                    constraint_map["long"] = f"constraint_{constraint_id}"
+                elif "short" in name:
+                    constraint_map["short"] = f"constraint_{constraint_id}"
+                elif "peak" in name:
+                    constraint_map["peak"] = f"constraint_{constraint_id}"
+
         for key, value_str in settings.items():
             try:
                 path_suffix = None
                 value_to_write = 0
+                unit = ""
 
-                if key in power_map:
-                    path_suffix = power_map[key]
+                if key.endswith("_time"):
+                    constraint_name = key[:-5]
+                    if constraint_name in constraint_map:
+                        path_suffix = (
+                            f"{constraint_map[constraint_name]}_time_window_us"
+                        )
+                        value_to_write = int(float(value_str) * 1_000_000)
+                        unit = "s"
+                elif key in constraint_map:
+                    path_suffix = f"{constraint_map[key]}_power_limit_uw"
                     value_to_write = int(float(value_str) * 1_000_000)
-                elif key in time_map:
-                    path_suffix = time_map[key]
-                    value_to_write = int(float(value_str) * 1_000_000)
+                    unit = "W"
 
                 if path_suffix:
-                    path = os.path.join(RAPL_PATH, rapl_dir, path_suffix)
+                    path = os.path.join(rapl_full_path, path_suffix)
                     if os.path.exists(path):
                         if not write_value(path, value_to_write):
                             print(f"  Skipped setting {key} due to write error.")
+                        else:
+                            print(f"  Set {key} to {value_str}{unit}")
                     else:
                         print(f"  Warning: Path not found, cannot set {key}: {path}")
+                else:
+                    print(f"  Warning: Unknown setting '{key}'. Skipping.")
             except ValueError:
                 print(f"  Invalid numeric value for {key}: '{value_str}'")
             except Exception as e:
@@ -194,7 +234,7 @@ def main():
         "-l",
         "--list",
         action="store_true",
-        help="List all readable RAPL parameters in SI units.",
+        help="List all readable RAPL parameters for enabled devices in SI units.",
     )
     parser.add_argument(
         "-w",
@@ -202,14 +242,15 @@ def main():
         type=str,
         metavar="RULE",
         help="Write power limits using a rule string.\n"
-        "The rule is a comma-separated list of key=value pairs.\n"
-        'Example: -w "peak=90,long=75,time=2.5"',
+        "Applies to all enabled devices by default.\n"
+        'Example: -w "long=75,long_time=28,short=90"',
     )
     parser.add_argument(
-        "--all-devices",
-        action="store_true",
-        help="Apply the write rule to all RAPL devices (e.g., for multiple sockets).\n"
-        "If not specified, the rule applies only to the first device found.",
+        "-d",
+        "--device",
+        type=str,
+        help="Specify a target device for the write operation (e.g., intel-rapl:0).\n"
+        "If specified, the rule applies only to this device.",
     )
 
     args = parser.parse_args()
@@ -221,7 +262,7 @@ def main():
     if args.list:
         list_power_limits()
     elif args.write:
-        set_power_limits(args.write, args.all_devices)
+        set_power_limits(args.write, args.device)
     else:
         parser.print_help()
 

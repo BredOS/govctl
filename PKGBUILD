@@ -17,7 +17,8 @@ source=('govctl_service.py'
         'govctl_cli.py'
         'govctl.service'
         'default_config.json'
-        'govctl.8')
+        'govctl.8'
+        'raplctl.py')
 
 sha256sums=('e6ea5d2e4d680357df4518c398b360d1e303f08332418a736052d1a83daaaf13'
             'd20f437916f6dbe853ae7ffd0995a950e7c8eed57691b8b829f0a352fdbc881c'
@@ -28,14 +29,20 @@ sha256sums=('e6ea5d2e4d680357df4518c398b360d1e303f08332418a736052d1a83daaaf13'
 install=govctl.install
 
 package() {
+    # Govctl
     install -Dm755 govctl_service.py "${pkgdir}/usr/bin/govctl_service.py"
     install -Dm755 govctl_cli.py "${pkgdir}/usr/bin/govctl"
 
+    # Intel RAPL
+    install -Dm755 raplctl.py "${pkgdir}/usr/bin/raplctl"
+
+    # Services
     install -Dm644 govctl.service "${pkgdir}/usr/lib/systemd/system/govctl.service"
 
+    # Default config
     install -d "${pkgdir}/etc/govctl/"
     install -Dm644 default_config.json "${pkgdir}/etc/govctl/config.json"
 
-    # Install man page
+    # Install man pages
     install -Dm644 govctl.8 "${pkgdir}/usr/share/man/man8/govctl.8"
 }
