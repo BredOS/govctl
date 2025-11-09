@@ -1,7 +1,7 @@
 # Maintainer: Bill Sideris <bill88t@bredos.org>
 
 pkgname=bredos-govctl
-pkgver=1.3.0
+pkgver=1.3.1
 pkgrel=1
 pkgdesc="BredOS CPU/devfreq governor manager"
 
@@ -21,7 +21,7 @@ source=('govctl_service.py'
         'govctl.8'
         'raplctl.py')
 
-sha256sums=('5ef9dcd9b2c26307a81c7d7f88a00e29d7505a3016ca917cc7adb568c778eb20'
+sha256sums=('306d334631ec3af48775ea6558f786f6462dad5a6f9bca370da7f1afb7c811a7'
             'b93529acded3af791fec1a28cc1f71af91b411bdf9fd988e7fb881cf30175dc4'
             '4cdf3822953fbc9fb9dc7048060f06c4817cf905d51c2e087068184a7a5bfc92'
             '3e627d45c261167b466a1d8d389d26de83935ad99cb51050361ca8cbb33a2c4a'
