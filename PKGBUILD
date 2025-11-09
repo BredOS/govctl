@@ -20,7 +20,7 @@ source=('govctl_service.py'
         'govctl.8'
         'raplctl.py')
 
-sha256sums=('1eb7aca3374f1f598df2f2e668cbc2aef8855ca6a213afd3fcd8e481ed8dda21'
+sha256sums=('9b63e7962141da5d670a457daa2a73cf719c47af28ef1c514f749ecb6aff375e'
             '210a8d93792f82fd642976bc861c62c7711bef35bb5785a39658e9a3ab54a828'
             '4cdf3822953fbc9fb9dc7048060f06c4817cf905d51c2e087068184a7a5bfc92'
             'ff1a6d645148ed5dccf7a7f85ed577f9d2bcac36a094e6a5570dcdce0d4d5c18'

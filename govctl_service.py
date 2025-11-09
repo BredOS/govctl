@@ -220,7 +220,7 @@ def main():
         detect_battery = current_config.get("detect_battery_state", False)
         powersave_point = max(min(current_config.get("powersave_point", 20), 80), 0)
 
-        tdps = current_config.get("tdps", None)
+        tdps = current_config.get("tdp", None)
         default_tdps = {
             "boost": 50,
             "performance": 900,

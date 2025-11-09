@@ -6,6 +6,6 @@
     "tdp": {
         "boost": 50,
         "conservative": 13,
-        "powersave": 8,
-    },
+        "powersave": 8
+    }
 }
