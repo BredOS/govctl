@@ -11,6 +11,7 @@ license=('GPL3')
 
 groups=(bredos)
 depends=('python' 'systemd' 'python-bredos-common')
+optdepends=('ryzenadj: Configuring TDP on AMD systems')
 
 backup=('etc/govctl/config.json')
 source=('govctl_service.py'
@@ -20,10 +21,10 @@ source=('govctl_service.py'
         'govctl.8'
         'raplctl.py')
 
-sha256sums=('9b63e7962141da5d670a457daa2a73cf719c47af28ef1c514f749ecb6aff375e'
-            '210a8d93792f82fd642976bc861c62c7711bef35bb5785a39658e9a3ab54a828'
+sha256sums=('5ef9dcd9b2c26307a81c7d7f88a00e29d7505a3016ca917cc7adb568c778eb20'
+            '71c9cf26a7aaeac4ffdf0231430f0157db550dfa49591fa62df8556280accae7'
             '4cdf3822953fbc9fb9dc7048060f06c4817cf905d51c2e087068184a7a5bfc92'
-            'ff1a6d645148ed5dccf7a7f85ed577f9d2bcac36a094e6a5570dcdce0d4d5c18'
+            '3e627d45c261167b466a1d8d389d26de83935ad99cb51050361ca8cbb33a2c4a'
             'e8ea1f038dfeaf86e8008a61d05cd4ba0a7ca33c3a7c71894749b0330b4c2364'
             '4d25257b599e9be37106df5482e24715ff715f23905363fb22600f2ddee90945')
 

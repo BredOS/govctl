@@ -12,6 +12,7 @@ import logging.handlers
 CONFIG_PATH = "/etc/govctl/config.json"
 LOG_TAG = "govctl"
 RAPLCTL_PATH = "/usr/bin/raplctl"
+RYZENADJ_PATH = "/usr/bin/ryzenadj"
 
 VALID_CPU_GOVS = ["powersave", "conservative", "performance"]
 VALID_DEVFREQ_GOVS = ["powersave", "performance"]
@@ -23,7 +24,9 @@ isx = os.uname().machine == "x86_64"  # Is x86_64
 if isx:
     try:
         with open("/proc/cpuinfo", "r") as f:
-            isi = "GenuineIntel" in f.read()
+            data = f.read()
+            isi = "GenuineIntel" in data
+            isa = "AuthenticAMD" in data
     except Exception:
         pass  # Ignore errors if /proc/cpuinfo is not available
 
@@ -45,7 +48,7 @@ logging.basicConfig(
 current_config = {}
 force_show = True
 powersave = False
-applied_rapl = None
+applied_tdp = None
 
 
 def load_config() -> None:
@@ -59,11 +62,11 @@ def load_config() -> None:
 
 
 def run_raplctl(governor: str, tdps: dict) -> None:
-    global applied_rapl
+    global applied_tdp
     if not (isi and Path(RAPLCTL_PATH).exists()):
         return
 
-    if applied_rapl == governor:
+    if applied_tdp == governor:
         return
 
     command = []
@@ -84,7 +87,7 @@ def run_raplctl(governor: str, tdps: dict) -> None:
             text=True,
         )
         logging.info(f"Successfully ran raplctl for {governor} mode.")
-        applied_rapl = governor
+        applied_tdp = governor
         if result.stdout:
             logging.info(f"raplctl output: {result.stdout.strip()}")
     except subprocess.CalledProcessError as e:
@@ -93,22 +96,58 @@ def run_raplctl(governor: str, tdps: dict) -> None:
             logging.error(f"raplctl error: {e.stderr.strip()}")
 
 
+def run_ryzenadj(governor: str, tdps: dict) -> None:
+    global applied_tdp
+    if not (isa and Path(RYZENADJ_PATH).exists()):
+        return
+
+    if applied_tdp == governor:
+        return
+
+    command = []
+    if governor == "conservative_x86":
+        governor = "conservative"
+
+    command = [
+        RYZENADJ_PATH,
+        f"--stapm-limit={int(tdps[governor] * 1000)}",
+        f"--slow-limit={int(tdps[governor] * 1000)}",
+        f'--fast-limit={int(min(tdps[governor] * (1 + (tdps["boost"]/100)), 900)) * 100}',
+    ]
+
+    try:
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        logging.info(f"Successfully ran ryzenadj for {governor} mode.")
+        applied_tdp = governor
+        if result.stdout:
+            logging.info(f"ryzenadj output: {result.stdout.strip()}")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to run ryzenadj: {e}")
+        if e.stderr:
+            logging.error(f"ryzenadj error: {e.stderr.strip()}")
+
+
 def set_governor(governor: str, tdps: dict) -> None:
     global force_show
     altered = False
     if governor not in VALID_CPU_GOVS:
         logging.error(f"Invalid CPU governor: {governor}")
 
-    rapl_mode = governor
+    tdp_mode = governor
     if isx and governor == "conservative":
         logging.warning(
             'Applying "powersave" governor with custom power limits for conservative mode.'
         )
-        rapl_mode = "conservative_x86"
         governor = "powersave"
 
-    # Set raplctl limits before changing governor
-    run_raplctl(rapl_mode, tdps)
+    # Set tdp before governor
+    run_raplctl(tdp_mode, tdps)
+    run_ryzenadj(tdp_mode, tdps)
 
     for cpu_path in Path("/sys/devices/system/cpu/").glob(
         "cpu*/cpufreq/scaling_governor"
