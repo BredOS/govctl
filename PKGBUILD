@@ -20,11 +20,12 @@ source=('govctl_service.py'
         'govctl.8'
         'raplctl.py')
 
-sha256sums=('e6ea5d2e4d680357df4518c398b360d1e303f08332418a736052d1a83daaaf13'
+sha256sums=('170441a72aae1646a73b26f5e05e258ee7e3b5b1bc848686ddcff7fcbd761094'
             'd20f437916f6dbe853ae7ffd0995a950e7c8eed57691b8b829f0a352fdbc881c'
-            '8a098c350416e3fe789cceb4d0fb5902fb9fed4e56abdf28cb989b4bd8c4923b'
+            '4cdf3822953fbc9fb9dc7048060f06c4817cf905d51c2e087068184a7a5bfc92'
             '9d10c81fff99c57d2eabad9adc3298b84d24dad390dd784ab7ac08d6650a2afb'
-            'e8ea1f038dfeaf86e8008a61d05cd4ba0a7ca33c3a7c71894749b0330b4c2364')
+            'e8ea1f038dfeaf86e8008a61d05cd4ba0a7ca33c3a7c71894749b0330b4c2364'
+            '4d25257b599e9be37106df5482e24715ff715f23905363fb22600f2ddee90945')
 
 install=govctl.install
 
