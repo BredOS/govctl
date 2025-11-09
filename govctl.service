@@ -4,7 +4,7 @@ After=multi-user.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/python3 /usr/bin/govctl_service.py
+ExecStart=/usr/bin/python3 /usr/bin/govctl_service
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=10

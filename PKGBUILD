@@ -30,7 +30,7 @@ install=govctl.install
 
 package() {
     # Govctl
-    install -Dm755 govctl_service.py "${pkgdir}/usr/bin/govctl_service.py"
+    install -Dm755 govctl_service.py "${pkgdir}/usr/bin/govctl_service"
     install -Dm755 govctl_cli.py "${pkgdir}/usr/bin/govctl"
 
     # Intel RAPL
