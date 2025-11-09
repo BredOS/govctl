@@ -95,7 +95,19 @@ def main() -> None:
     )
 
     args = parser.parse_args()
-    config = load_config()
+
+    config = None
+    try:
+        config = load_config()
+    except:
+        print("Failed to load config, resetting..")
+        config = {
+            "governor": "performance",
+            "governor_battery": "conservative",
+            "detect_battery_state": true,
+            "powersave_point": 20,
+            "tdp": {"boost": 50, "conservative": 13, "powersave": 8},
+        }
 
     if args.get_governor:
         gov = get_cur_gov()
