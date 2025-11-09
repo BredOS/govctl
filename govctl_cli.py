@@ -42,6 +42,13 @@ def main() -> None:
     )
 
     parser.add_argument(
+        "-G",
+        "--get-governor",
+        action="store_true",
+        help="Get the saved governor for scripting (no newlines/formatting)",
+    )
+
+    parser.add_argument(
         "-b",
         "--set-battery-governor",
         choices=["powersave", "conservative", "performance"],
@@ -77,6 +84,10 @@ def main() -> None:
 
     args = parser.parse_args()
     config = load_config()
+
+    if args.get_governor:
+        print(config.get("governor"), end="")
+        sys.exit(0)
 
     modified = False
 
