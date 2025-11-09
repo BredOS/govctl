@@ -1,7 +1,7 @@
 # Maintainer: Bill Sideris <bill88t@bredos.org>
 
 pkgname=bredos-govctl
-pkgver=1.2.2
+pkgver=1.3.0
 pkgrel=1
 pkgdesc="BredOS CPU/devfreq governor manager"
 
@@ -10,7 +10,7 @@ url="https://BredOS.org/"
 license=('GPL3')
 
 groups=(bredos)
-depends=('python' 'systemd')
+depends=('python' 'systemd' 'python-bredos-common')
 
 backup=('etc/govctl/config.json')
 source=('govctl_service.py'
