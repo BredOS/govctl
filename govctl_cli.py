@@ -31,6 +31,18 @@ def check_root() -> None:
         sys.exit(1)
 
 
+def get_cur_gov() -> None:
+    try:
+        output = subprocess.check_output(["systemctl", "status", "govctl"], text=True)
+        last_lines = output.strip().splitlines()[-30:]
+        last_lines.reverse()
+        for line in last_lines:
+            if "Applied governor" in line:
+                return line[line.find('governor "') + 10 : -1]
+    except:
+        pass
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Governor configuration tool")
 
@@ -86,7 +98,8 @@ def main() -> None:
     config = load_config()
 
     if args.get_governor:
-        print(config.get("governor"), end="")
+        gov = get_cur_gov()
+        print(gov if gov is not None else "Unknown", end="")
         sys.exit(0)
 
     modified = False
@@ -118,30 +131,18 @@ def main() -> None:
         print("Reloading..")
         reload_service()
     else:
-        for _ in range(3):
-            try:
-                output = subprocess.check_output(
-                    ["systemctl", "status", "govctl"], text=True
-                )
-                last_line = output.strip().splitlines()[-1]
-                if "Applied governor" in last_line:
-                    info_str = (
-                        "Currently applied governor: "
-                        + last_line[last_line.find('governor "') + 10 : -1]
-                    )
-                    print(
-                        "\n"
-                        + ("-" * len(info_str))
-                        + "\n"
-                        + info_str
-                        + "\n"
-                        + ("-" * len(info_str))
-                        + "\n"
-                    )
-                    break
-            except subprocess.CalledProcessError:
-                pass
-            sleep(1)
+        gov = get_cur_gov()
+        if gov is not None:
+            info_str = "Currently applied governor: " + gov
+            print(
+                "\n"
+                + ("-" * len(info_str))
+                + "\n"
+                + info_str
+                + "\n"
+                + ("-" * len(info_str))
+                + "\n"
+            )
 
         parser.print_help()
 

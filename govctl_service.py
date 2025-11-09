@@ -45,6 +45,7 @@ logging.basicConfig(
 current_config = {}
 force_show = True
 powersave = False
+applied_rapl = None
 
 
 def load_config() -> None:
@@ -58,7 +59,11 @@ def load_config() -> None:
 
 
 def run_raplctl(governor: str) -> None:
+    global applied_rapl
     if not (isi and Path(RAPLCTL_PATH).exists()):
+        return
+
+    if applied_rapl == governor:
         return
 
     command = []
@@ -80,6 +85,7 @@ def run_raplctl(governor: str) -> None:
             text=True,
         )
         logging.info(f"Successfully ran raplctl for {governor} mode.")
+        applied_rapl = governor
         if result.stdout:
             logging.info(f"raplctl output: {result.stdout.strip()}")
     except subprocess.CalledProcessError as e:
