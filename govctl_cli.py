@@ -94,6 +94,22 @@ def main() -> None:
         help="Percentage at which powersave triggers",
     )
 
+    parser.add_argument(
+        "--set-tdp-boost",
+        type=int,
+        help="Set TDP for 'performance' governor (in watts)",
+    )
+    parser.add_argument(
+        "--set-tdp-conservative",
+        type=int,
+        help="Set TDP for 'conservative' governor (in watts)",
+    )
+    parser.add_argument(
+        "--set-tdp-powersave",
+        type=int,
+        help="Set TDP for 'powersave' governor (in watts)",
+    )
+
     args = parser.parse_args()
 
     config = None
@@ -104,7 +120,7 @@ def main() -> None:
         config = {
             "governor": "performance",
             "governor_battery": "conservative",
-            "detect_battery_state": true,
+            "detect_battery_state": True,
             "powersave_point": 20,
             "tdp": {"boost": 50, "conservative": 13, "powersave": 8},
         }
@@ -134,6 +150,18 @@ def main() -> None:
 
     if args.powersave_percent:
         config["powersave_point"] = args.powersave_percent
+        modified = True
+
+    if args.set_tdp_boost is not None:
+        config["tdp"]["boost"] = args.set_tdp_boost
+        modified = True
+
+    if args.set_tdp_conservative is not None:
+        config["tdp"]["conservative"] = args.set_tdp_conservative
+        modified = True
+
+    if args.set_tdp_powersave is not None:
+        config["tdp"]["powersave"] = args.set_tdp_powersave
         modified = True
 
     if modified:
