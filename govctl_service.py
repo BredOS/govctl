@@ -9,19 +9,6 @@ import subprocess
 from pathlib import Path
 import logging.handlers
 
-# Check if power-profiles-daemon is running
-try:
-    result = subprocess.run(
-        ["systemctl", "is-active", "--quiet", "power-profiles-daemon"], check=False
-    )
-    if result.returncode == 0:
-        print(
-            "Error: Conflicting with power-profiles-daemon! Exiting..", file=sys.stderr
-        )
-        sys.exit(1)
-except:
-    pass
-
 CONFIG_PATH = "/etc/govctl/config.json"
 LOG_TAG = "govctl"
 RAPLCTL_PATH = "/usr/bin/raplctl"
@@ -42,6 +29,21 @@ if isx:
             isa = "AuthenticAMD" in data
     except Exception:
         pass  # Ignore errors if /proc/cpuinfo is not available
+
+    # Check if power-profiles-daemon is running
+    try:
+        result = subprocess.run(
+            ["systemctl", "is-active", "--quiet", "power-profiles-daemon"], check=False
+        )
+        if result.returncode == 0:
+            print(
+                "Error: Conflicting with power-profiles-daemon! Exiting..",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+    except:
+        pass
+
 
 CPU_GOVERNOR_PATH = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"
 DEVFREQ_GOVERNOR_PATH = "/sys/class/devfreq/*/governor"
@@ -153,9 +155,6 @@ def set_governor(governor: str, tdps: dict) -> None:
 
     effective_governor = governor
     if isx and governor == "conservative":
-        logging.warning(
-            'Applying "powersave" governor with custom power limits for conservative mode.'
-        )
         governor = "powersave"
 
     # Set tdp before governor
