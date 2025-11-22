@@ -21,10 +21,6 @@ def save_config(config) -> None:
         json.dump(config, f, indent=4)
 
 
-def reload_service() -> None:
-    subprocess.run(["sudo", "systemctl", "reload", "govctl.service"], check=False)
-
-
 def check_root() -> None:
     if os.geteuid():
         print("Root access required, rerun with sudo.", file=sys.stderr)
@@ -168,8 +164,6 @@ def main() -> None:
         check_root()
         print("Saving configuration..")
         save_config(config)
-        print("Reloading..")
-        reload_service()
     else:
         gov = get_cur_gov()
         if gov is not None:

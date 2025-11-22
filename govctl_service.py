@@ -64,14 +64,31 @@ current_config = {}
 force_show = True
 powersave = False
 applied_tdp = None
+last_config_mtime = 0
 
 
 def load_config() -> None:
-    global current_config
+    global current_config, last_config_mtime, force_show, applied_tdp
     try:
-        with open(CONFIG_PATH, "r") as f:
-            current_config = json.load(f)
-        logging.info("Configuration reloaded")
+        config_path = Path(CONFIG_PATH)
+        if not config_path.exists():
+            return
+
+        # Check modification time
+        current_mtime = config_path.stat().st_mtime
+
+        # Only reload if the time is different from the last load
+        if current_mtime != last_config_mtime:
+            with open(CONFIG_PATH, "r") as f:
+                current_config = json.load(f)
+            last_config_mtime = current_mtime
+
+            # Force re-application of settings
+            force_show = True
+            # Reset applied_tdp to ensure raplctl/ryzenadj run again
+            applied_tdp = None
+
+            logging.info("Configuration reloaded due to file change")
     except Exception as e:
         logging.error(f"Failed to load config: {e}")
 
@@ -91,7 +108,7 @@ def run_raplctl(governor: str, tdps: dict) -> None:
     command = [
         RAPLCTL_PATH,
         "-w",
-        f"long={int(tdps[governor])},short={int(min(tdps[governor] * (1 + (tdps["boost"]/100)), 900))},long_time={300 if governor == 'performance' else 20}",
+        f"long={int(tdps[governor])},short={int(min(tdps[governor] * (1 + (tdps['boost']/100)), 900))},long_time={300 if governor == 'performance' else 20}",
     ]
 
     try:
@@ -240,15 +257,15 @@ def status() -> int:
 
 
 def reload(signum, frame) -> None:
-    global force_show
-    load_config()
-    force_show = True
+    global last_config_mtime
+    last_config_mtime = 0
 
 
 def delay() -> None:
     period = 5 if powersave else 20
     for _ in range(period):
         time.sleep(1)
+        load_config()  # Check for config changes every second
         if force_show:
             return
 
@@ -261,6 +278,9 @@ def main():
     load_config()
 
     while True:
+        # Also check config at the start of every loop
+        load_config()
+
         if not current_config:
             logging.warning("Config could not be loaded, retrying in 10s.")
             time.sleep(10)
