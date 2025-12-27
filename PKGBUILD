@@ -1,7 +1,7 @@
 # Maintainer: Bill Sideris <bill88t@bredos.org>
 
 pkgname=bredos-govctl
-pkgver=1.3.3
+pkgver=1.4.0
 pkgrel=1
 pkgdesc="BredOS CPU/devfreq governor manager"
 
@@ -11,7 +11,11 @@ license=('GPL3')
 
 groups=(bredos)
 depends=('python' 'systemd' 'python-bredos-common')
-optdepends=('ryzenadj: Configuring TDP on AMD systems')
+optdepends=(
+    'ryzenadj: Configuring TDP on AMD systems'
+    'msr-tools: Uncapping Intel PL limits'
+    'devmem: Uncapping Intel PL limits'
+)
 
 backup=('etc/govctl/config.json')
 source=('govctl_service.py'
@@ -21,7 +25,7 @@ source=('govctl_service.py'
         'govctl.8'
         'raplctl.py')
 
-sha256sums=('bce5ebb7c89ca2667402b0f8dec7dd4289466a1db77f97ef760b4f710d66b38c'
+sha256sums=('02300d991f1b49dbe570017894e1d949613ce2678a68d9876d1535a17143cc74'
             '348325f3599c9dacfae65dd9b4da6ec2284d224b79e0004eeecebda9641d95e4'
             '4cdf3822953fbc9fb9dc7048060f06c4817cf905d51c2e087068184a7a5bfc92'
             '3e627d45c261167b466a1d8d389d26de83935ad99cb51050361ca8cbb33a2c4a'

@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 
-import json
-import os
-import time
-import logging
-import signal
-import subprocess
+import json, os, time, logging, signal, subprocess
+import shutil, re
 from pathlib import Path
 import logging.handlers
 
@@ -16,6 +12,19 @@ RYZENADJ_PATH = "/usr/bin/ryzenadj"
 
 VALID_CPU_GOVS = ["powersave", "conservative", "performance"]
 VALID_DEVFREQ_GOVS = ["powersave", "performance"]
+
+# Intel Constants
+INTEL_MSR_PKG_POWER_LIMIT = 0x610
+INTEL_PACKAGE_RAPL_LIMIT_0_0_0_MCHBAR_PCU = 0x59A0
+INTEL_PL1_ENABLE_BITS_LOW = 0x00008000
+INTEL_PL2_ENABLE_BITS_HIGH = 0x00008000
+# Combine bits: PL1 is low word, PL2 is high word (shifted 32)
+INTEL_PL1_PL2_ENABLE_BITS = INTEL_PL1_ENABLE_BITS_LOW | (
+    INTEL_PL2_ENABLE_BITS_HIGH << 32
+)
+
+PL_UNCAP_REQUIRED_TOOLS = ["devmem2", "rdmsr", "wrmsr", "turbostat", "setpci"]
+PL_UNCAP_MISSING = [tool for tool in PL_UNCAP_REQUIRED_TOOLS if not shutil.which(tool)]
 
 isi = False  # Is Intel
 isa = False  # Is AMD
@@ -43,7 +52,6 @@ if isx:
             sys.exit(1)
     except:
         pass
-
 
 CPU_GOVERNOR_PATH = "/sys/devices/system/cpu/cpu*/cpufreq/scaling_governor"
 DEVFREQ_GOVERNOR_PATH = "/sys/class/devfreq/*/governor"
@@ -270,12 +278,121 @@ def delay() -> None:
             return
 
 
+def read_phys_mem_word(address: int) -> int:
+    cmd = ["devmem2", hex(address), "w"]
+    try:
+        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode()
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"devmem2 failed: {e.output.decode()}") from e
+
+    match = re.search(r"Value at address.*: (0x[0-9A-Fa-f]+)", output)
+    if not match:
+        raise ValueError("Could not parse devmem2 output")
+
+    return int(match.group(1), 16)
+
+
+def write_phys_mem_word(address, value):
+    cmd = ["devmem2", hex(address), "w", hex(value)]
+    try:
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"devmem2 write failed: {e.output.decode()}") from e
+
+
+def read_msr(address):
+    cmd = ["rdmsr", "--hexadecimal", "--zero-pad", "--c-language", hex(address)]
+    try:
+        output = subprocess.check_output(cmd, stderr=subprocess.STDOUT).decode().strip()
+        return int(output, 16)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"rdmsr failed: {e.output.decode()}") from e
+
+
+def write_msr(address, value):
+    """Writes a value to an MSR using wrmsr."""
+    cmd = ["wrmsr", hex(address), hex(value)]
+    try:
+        subprocess.check_output(cmd, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"wrmsr failed: {e.output.decode()}") from e
+
+
+def enable_msr_limits():
+    msr_val = read_msr(INTEL_MSR_PKG_POWER_LIMIT)
+
+    if (msr_val & INTEL_PL1_PL2_ENABLE_BITS) != INTEL_PL1_PL2_ENABLE_BITS:
+        print("Enabling PL1 and PL2 bits in MSR...")
+        new_val = msr_val | INTEL_PL1_PL2_ENABLE_BITS
+        write_msr(INTEL_MSR_PKG_POWER_LIMIT, new_val)
+
+
+def get_mchbar_address():
+    cmd = ["setpci", "-s", "00:00.0", "48.l"]
+    output = subprocess.check_output(cmd).decode().strip()
+    mchbar = int(output, 16)
+
+    # Check enable bit (bit 0)
+    if not (mchbar & 1):
+        raise RuntimeError("MCHBAR is not enabled.")
+
+    # Clear enable bit to get physical address
+    return mchbar & ~1
+
+
+def disable_mmio_limits() -> None:
+    mchbar = get_mchbar_address()
+    rapl_addr = mchbar + INTEL_PACKAGE_RAPL_LIMIT_0_0_0_MCHBAR_PCU
+
+    # Read current 64-bit value (split into two 32-bit reads)
+    low = read_phys_mem_word(rapl_addr)
+    high = read_phys_mem_word(rapl_addr + 4)
+
+    if (not low) and (not high):
+        return
+
+    print(f"Current MMIO RAPL Limit: 0x{high:08x}:0x{low:08x}")
+
+    # Check lock bit (bit 31 of high word)
+    is_locked = (high & 0x80000000) != 0
+
+    if is_locked:
+        pl1_active = low & INTEL_PL1_ENABLE_BITS_LOW
+        pl2_active = high & INTEL_PL2_ENABLE_BITS_HIGH
+
+        if pl1_active or pl2_active:
+            print("Warning: MMIO is locked and limits are enabled. Cannot override.")
+    else:
+        print("MMIO not locked. Zeroing out register to disable MMIO limits.")
+        write_phys_mem_word(rapl_addr, 0x00000000)
+        write_phys_mem_word(rapl_addr + 4, 0x00000000)
+
+
+def try_uncap_power() -> None:
+    if PL_UNCAP_MISSING:
+        logging.warning("Binaries missing for power limit uncap!")
+        logging.warning("---------------------------------------")
+        for i in PL_UNCAP_MISSING:
+            logging.warning(f" - {i}")
+        logging.warning("---------------------------------------")
+        return
+
+    try:
+        enable_msr_limits()
+        disable_mmio_limits()
+    except:
+        logging.warning("Failed to uncap PL")
+
+
 def main():
     logging.info("Starting GovCtl")
     global force_show, powersave
 
     signal.signal(signal.SIGHUP, reload)
     load_config()
+
+    if isi:
+        try_uncap_power()
 
     while True:
         # Also check config at the start of every loop
