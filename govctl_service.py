@@ -362,6 +362,7 @@ def disable_mmio_limits() -> None:
 
         if pl1_active or pl2_active:
             print("Warning: MMIO is locked and limits are enabled. Cannot override.")
+            raise RuntimeError
     else:
         print("MMIO not locked. Zeroing out register to disable MMIO limits.")
         write_phys_mem_word(rapl_addr, 0x00000000)
@@ -376,10 +377,12 @@ def try_uncap_power() -> None:
             logging.warning(f" - {i}")
         logging.warning("---------------------------------------")
         return
-
+    else:
+        logging.info("PL uncap will be attempted.")
     try:
         enable_msr_limits()
         disable_mmio_limits()
+        logging.info("PL uncap complete.")
     except:
         logging.warning("Failed to uncap PL")
 
